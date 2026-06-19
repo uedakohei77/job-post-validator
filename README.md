@@ -5,7 +5,8 @@ An automated validation tool that fetches volunteer job postings from Slack and 
 ## Core Features
 
 - **Pydantic Validation Schema**: Guarantees clean, typed validation reports (e.g., validation status, duration calculation, points/hour rate, corrections needed).
-- **In-Context Few-Shot Prompting**: Uses a dynamic configuration file ([config/historical_posts.json](file:///Users/koheiueda/antigravity/JobPostValidator/config/historical_posts.json)) to feed representative examples of point rules, complexity flexes, and passive storage exceptions into Gemini.
+- **Dynamic Few-Shot In-Context Learning**: Uses Gemini's embeddings (`text-embedding-004`) to find the top-3 most similar historical posts from [config/historical_posts.json](file:///Users/koheiueda/antigravity/JobPostValidator/config/historical_posts.json). It only feeds those top-3 relevant examples to Gemini on each validation check, optimizing cost, speed, and validation accuracy.
+- **Auto-Caching Vector Embeddings**: The tool automatically checks for and populates missing embedding vectors in the reference JSON file on run, making ingestion completely automated.
 - **Slack OAuth Integration**: Implements a clean OAuth 2.0 flow with a local redirection callback server to authenticate and retrieve Slack User Tokens (`xoxp-...`) safely.
 - **Dry-Run & Interactive Modes**: Fully testable CLI options without requiring active Slack setup.
 

@@ -1,6 +1,7 @@
 import json
 import os
 import sys
+import math
 from google import genai
 from google.genai import types
 from google.genai.errors import APIError
@@ -22,6 +23,99 @@ def load_historical_examples():
     except Exception as e:
         print(f"Error: Failed to read historical posts from {path}: {e}")
         return []
+
+
+def get_embedding(client, text):
+    """
+    Retrieves the text embedding vector using Gemini's text-embedding-004 model.
+    """
+    try:
+        response = client.models.embed_content(
+            model=settings.EMBEDDING_MODEL,
+            contents=text
+        )
+        return response.embeddings[0].values
+    except Exception as e:
+        print(f"Error generating embedding for text: '{text[:30]}...': {e}")
+        raise
+
+
+def generate_embeddings_if_missing(client, examples):
+    """
+    Scans historical examples and updates the JSON file with cached embeddings if missing.
+    This acts as a transparent, automated 'one-time ingestion' step.
+    """
+    missing_any = any("embedding" not in ex for ex in examples)
+    if not missing_any:
+        return examples
+
+    print("Generating missing embeddings for historical posts (one-time caching)...")
+    updated_examples = []
+    
+    for ex in examples:
+        if "embedding" not in ex:
+            print(f"  -> Generating embedding for: '{ex['text'][:40]}...'")
+            ex["embedding"] = get_embedding(client, ex["text"])
+        updated_examples.append(ex)
+        
+    # Save back to JSON file
+    path = settings.HISTORICAL_POSTS_PATH
+    try:
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(updated_examples, f, indent=2)
+        print(f"Embedding cache saved successfully to {path}")
+    except Exception as e:
+        print(f"Warning: Failed to save updated embeddings to {path}: {e}")
+        
+    return updated_examples
+
+
+def cosine_similarity(v1, v2):
+    """
+    Calculates the cosine similarity between two vector embeddings.
+    """
+    if not v1 or not v2 or len(v1) != len(v2):
+        return 0.0
+    dot_product = sum(a * b for a, b in zip(v1, v2))
+    norm_v1 = math.sqrt(sum(a * a for a in v1))
+    norm_v2 = math.sqrt(sum(b * b for b in v2))
+    if norm_v1 == 0.0 or norm_v2 == 0.0:
+        return 0.0
+    return dot_product / (norm_v1 * norm_v2)
+
+
+def get_top_n_similar_examples(client, post_text, examples, n=3):
+    """
+    Sorts historical examples by cosine similarity to the input post and returns the top N.
+    """
+    if not examples:
+        return []
+        
+    # Get embedding for the input post
+    post_vector = get_embedding(client, post_text)
+    
+    # Calculate similarity score for each historical example
+    scored_examples = []
+    for ex in examples:
+        ex_vector = ex.get("embedding")
+        if not ex_vector:
+            # Fallback if somehow still missing
+            similarity = 0.0
+        else:
+            similarity = cosine_similarity(post_vector, ex_vector)
+        scored_examples.append((similarity, ex))
+        
+    # Sort by similarity score in descending order
+    scored_examples.sort(key=lambda x: x[0], reverse=True)
+    
+    # Print search results for observability
+    print(f"\n[Similarity Search] Top {n} matching historical examples for prompt:")
+    for idx, (score, ex) in enumerate(scored_examples[:n], 1):
+        print(f"  {idx}. [Score: {score:.3f}] Category: '{ex['category']}' - '{ex['text'][:50]}...'")
+    print()
+
+    # Extract the examples
+    return [ex for _, ex in scored_examples[:n]]
 
 
 def build_validation_prompt(post_text, examples):
@@ -69,7 +163,7 @@ Your task is to analyze the text of a volunteer posting and verify if the reward
    - Do not flag postings for minor deviations. Only set `is_valid` to false if the reward points are completely unreasonable or "far away" from the baseline rules, exceptions, or historical precedents.
    - If a post is invalid, state the required corrections in `corrections_needed`. If valid, `corrections_needed` must be an empty list.
 
-### Historical Reference Examples:
+### Historical Reference Examples (Dynamic Few-Shot context):
 {formatted_examples}
 
 ### Validate the following Volunteer Post:
@@ -103,8 +197,14 @@ def validate_volunteer_post(post_text):
     # Load examples for few-shot learning
     examples = load_historical_examples()
     
-    # Build prompt
-    prompt = build_validation_prompt(post_text, examples)
+    # 1. Update embedding cache if missing
+    examples = generate_embeddings_if_missing(client, examples)
+    
+    # 2. Select top N most similar examples dynamically
+    top_examples = get_top_n_similar_examples(client, post_text, examples, n=3)
+    
+    # 3. Build prompt containing only the top examples
+    prompt = build_validation_prompt(post_text, top_examples)
     
     try:
         # Call Gemini using Structured Outputs via Pydantic schema
@@ -128,3 +228,4 @@ def validate_volunteer_post(post_text):
     except Exception as e:
         print(f"An unexpected error occurred during validation: {e}")
         raise
+
