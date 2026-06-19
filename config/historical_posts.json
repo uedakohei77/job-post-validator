@@ -1,56 +1,56 @@
 [
   {
-    "text": "Looking for a volunteer to help file documents this Saturday from 9:00 AM to 1:00 PM (4 hours). Offering 4 reward points.",
+    "text": "今週土曜日の午前9:00〜午後1:00（4時間）、書類整理のお手伝いをしてくださるボランティアを募集します。報酬として4ポイントを付与します。",
     "is_valid": true,
     "extracted_duration_hours": 4.0,
     "extracted_points": 4,
     "assigned_points_per_hour": 1.0,
     "category": "Standard",
-    "reasoning": "The work involves standard administrative filing for 4 hours. The reward points (4 points) match the baseline rule of 1 point per working hour.",
+    "reasoning": "この業務は4時間の標準的な書類整理作業です。付与される報酬ポイント（4ポイント）は、作業時間1時間あたり1ポイントという基本ルールと一致しています。",
     "corrections_needed": []
   },
   {
-    "text": "Need strong volunteers to help move heavy furniture and boxes up 3 flights of stairs. Sunday from 10:00 AM to 12:00 PM (2 hours). Offering 5 reward points.",
+    "text": "日曜日の午前10:00〜12:00（2時間）、重い家具や段ボール箱を階段で3階まで運ぶのを手伝ってくれる、体力のあるボランティアを募集します。5ポイントを付与します。",
     "is_valid": true,
     "extracted_duration_hours": 2.0,
     "extracted_points": 5,
     "assigned_points_per_hour": 2.5,
     "category": "High-Effort",
-    "reasoning": "The volunteer work involves intensive manual labor (moving heavy furniture up stairs). A rate of 2.5 points per hour is justified under the complexity flex rule.",
+    "reasoning": "重い家具を階段で運ぶといった、肉体的に負荷の高い作業内容です。作業時間あたり2.5ポイントの付与は、作業の複雑性・負荷度を考慮したルールに基づき妥当と判断されます。",
     "corrections_needed": []
   },
   {
-    "text": "Seeking a volunteer to store 10 boxes of library archives in a dry garage or basement for the month of July. Offering 3 reward points.",
+    "text": "7月の1ヶ月間、図書館のアーカイブ用段ボール10箱を、乾燥したガレージまたは地下室で保管させていただけるボランティアを募集しています。謝礼として3ポイントを付与します。",
     "is_valid": true,
     "extracted_duration_hours": 744.0,
     "extracted_points": 3,
     "assigned_points_per_hour": 0.004,
     "category": "Passive Storage",
-    "reasoning": "The volunteer is providing storage space rather than active labor. This qualifies for the passive/storage exception, which appropriately awards a low total of 3 points despite the long duration.",
+    "reasoning": "ボランティアは能動的な労働ではなく、保管スペースを提供しています。これは受動的・保管例外ルールが適用され、長期間の預かりであっても計3ポイントという低い総ポイント設定が妥当です。",
     "corrections_needed": []
   },
   {
-    "text": "Need someone to sit at the reception desk and answer calls. Tuesday from 1:00 PM to 5:00 PM (4 hours). Offering 25 reward points.",
+    "text": "火曜日の午後1:00〜5:00（4時間）、受付デスクに座って電話応対をしてくれる方を募集します。25ポイントを付与します。",
     "is_valid": false,
     "extracted_duration_hours": 4.0,
     "extracted_points": 25,
     "assigned_points_per_hour": 6.25,
     "category": "Standard",
-    "reasoning": "The post describes a standard office volunteer role for 4 hours. The reward of 25 points is far off the 1 point per hour baseline, and no physical/high-effort reasons are given to justify this premium.",
+    "reasoning": "4時間の標準的な受付事務作業です。謝礼の25ポイントは基本ルール（1時間あたり1ポイント）から大幅に逸脱しており、このプレミアムを正当化するような肉体的負担や高度な専門性の記述もありません。",
     "corrections_needed": [
-      "Reduce the reward points to align with the standard baseline (e.g., 4 points for 4 hours)."
+      "謝礼ポイントを基本ルールに合わせて引き下げてください（例: 4時間に対して4ポイントなど）。"
     ]
   },
   {
-    "text": "Need a garage space to store extra folding tables for 2 weeks. Offering 50 reward points.",
+    "text": "イベント用の折りたたみテーブルを2週間保管するためのガレージスペースを貸してください。50ポイントを付与します。",
     "is_valid": false,
     "extracted_duration_hours": 336.0,
     "extracted_points": 50,
     "assigned_points_per_hour": 0.149,
     "category": "Passive Storage",
-    "reasoning": "The work involves passive space storage for 2 weeks. Under the passive/storage exception, total points should be low (e.g., 2 to 3 points). 50 points is excessive and unreasonable.",
+    "reasoning": "2週間の受動的なスペース保管業務です。受動的・保管例外ルールに基づき、付与ポイントは低め（2〜3ポイント程度）に抑えるべきですが、50ポイントは過剰であり不当です。",
     "corrections_needed": [
-      "Reduce the total reward points to 2 or 3 to align with the passive storage exception rules."
+      "受動的保管例外のルールに合わせ、総ポイントを2〜3ポイントに引き下げてください。"
     ]
   }
 ]
