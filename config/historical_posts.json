@@ -1,0 +1,56 @@
+[
+  {
+    "text": "Looking for a volunteer to help file documents this Saturday from 9:00 AM to 1:00 PM (4 hours). Offering 4 reward points.",
+    "is_valid": true,
+    "extracted_duration_hours": 4.0,
+    "extracted_points": 4,
+    "assigned_points_per_hour": 1.0,
+    "category": "Standard",
+    "reasoning": "The work involves standard administrative filing for 4 hours. The reward points (4 points) match the baseline rule of 1 point per working hour.",
+    "corrections_needed": []
+  },
+  {
+    "text": "Need strong volunteers to help move heavy furniture and boxes up 3 flights of stairs. Sunday from 10:00 AM to 12:00 PM (2 hours). Offering 5 reward points.",
+    "is_valid": true,
+    "extracted_duration_hours": 2.0,
+    "extracted_points": 5,
+    "assigned_points_per_hour": 2.5,
+    "category": "High-Effort",
+    "reasoning": "The volunteer work involves intensive manual labor (moving heavy furniture up stairs). A rate of 2.5 points per hour is justified under the complexity flex rule.",
+    "corrections_needed": []
+  },
+  {
+    "text": "Seeking a volunteer to store 10 boxes of library archives in a dry garage or basement for the month of July. Offering 3 reward points.",
+    "is_valid": true,
+    "extracted_duration_hours": 744.0,
+    "extracted_points": 3,
+    "assigned_points_per_hour": 0.004,
+    "category": "Passive Storage",
+    "reasoning": "The volunteer is providing storage space rather than active labor. This qualifies for the passive/storage exception, which appropriately awards a low total of 3 points despite the long duration.",
+    "corrections_needed": []
+  },
+  {
+    "text": "Need someone to sit at the reception desk and answer calls. Tuesday from 1:00 PM to 5:00 PM (4 hours). Offering 25 reward points.",
+    "is_valid": false,
+    "extracted_duration_hours": 4.0,
+    "extracted_points": 25,
+    "assigned_points_per_hour": 6.25,
+    "category": "Standard",
+    "reasoning": "The post describes a standard office volunteer role for 4 hours. The reward of 25 points is far off the 1 point per hour baseline, and no physical/high-effort reasons are given to justify this premium.",
+    "corrections_needed": [
+      "Reduce the reward points to align with the standard baseline (e.g., 4 points for 4 hours)."
+    ]
+  },
+  {
+    "text": "Need a garage space to store extra folding tables for 2 weeks. Offering 50 reward points.",
+    "is_valid": false,
+    "extracted_duration_hours": 336.0,
+    "extracted_points": 50,
+    "assigned_points_per_hour": 0.149,
+    "category": "Passive Storage",
+    "reasoning": "The work involves passive space storage for 2 weeks. Under the passive/storage exception, total points should be low (e.g., 2 to 3 points). 50 points is excessive and unreasonable.",
+    "corrections_needed": [
+      "Reduce the total reward points to 2 or 3 to align with the passive storage exception rules."
+    ]
+  }
+]
