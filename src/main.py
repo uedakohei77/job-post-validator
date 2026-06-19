@@ -9,26 +9,27 @@ from src.validator import validate_volunteer_post
 # Mock / Dry-run postings to demonstrate the tool instantly without Slack API
 DRY_RUN_POSTS = [
     {
-        "description": "Standard Post (Valid)",
-        "text": "Volunteers needed to help set up folding chairs for the community concert. Time: Friday 4:00 PM to 7:00 PM (3 hours). Offering 3 reward points."
+        "description": "標準的なボランティア（有効な投稿）",
+        "text": "コミュニティセンターでのイベント受付ボランティアを募集します。日時：今週金曜日 13:00〜17:00 (4時間)。謝礼ポイントは4ポイントです。"
     },
     {
-        "description": "High-Effort Post (Valid)",
-        "text": "URGENT: Need 3 volunteers to dig trenches and clear heavy gravel for the community garden pathway. Saturday 8:00 AM to 12:00 PM (4 hours). Due to intense physical labor, we are offering 12 reward points."
+        "description": "肉体労働ボランティア（有効な投稿 - 報酬高め）",
+        "text": "【急募】公園の整備作業のため、シャベルでの穴掘りや木屑の運搬作業（体力仕事）をお願いできる方を募集します。土曜日 9:00〜12:00 (3時間)。力仕事のため、10ポイントを付与します。"
     },
     {
-        "description": "Passive Storage Post (Valid)",
-        "text": "Looking for a neighbor to host a storage container of festival decorations in their driveway for the month of August. Offering 3 reward points total."
+        "description": "受動的な保管ボランティア（有効な投稿 - 保管例外適用）",
+        "text": "災害用備蓄品（ダンボール15箱分）を1ヶ月間、湿気のないガレージまたは倉庫スペースに保管させていただける方を募集しています。謝礼ポイントは一律3ポイントです。"
     },
     {
-        "description": "Standard Post with Excessive Points (Invalid)",
-        "text": "Looking for a volunteer to hand out maps at the entrance. Saturday 1:00 PM to 3:00 PM (2 hours). Offering 30 reward points."
+        "description": "標準的な作業でポイントが過剰なケース（無効な投稿）",
+        "text": "簡単な書類の整理・ファイリングのお手伝いをお願いします。来週火曜日 14:00〜16:00 (2時間)。謝礼ポイントとして35ポイントをプレゼントします。"
     },
     {
-        "description": "Passive Storage with Excessive Points (Invalid)",
-        "text": "Need garage space to store 4 kayaks for the winter (3 months). Offering 150 reward points."
+        "description": "受動的保管でポイントが過剰なケース（無効な投稿）",
+        "text": "イベント用テント（畳んだ状態）をご自宅の庭または物置で2週間保管させてください。謝礼ポイントとして60ポイントを差し上げます。"
     }
 ]
+
 
 def print_report(post_text, report):
     """Prints the structured Pydantic report in a beautiful, formatted terminal box."""

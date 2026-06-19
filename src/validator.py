@@ -149,6 +149,7 @@ Your task is to analyze the text of a volunteer posting and verify if the reward
 ### Business Rules for Point Allocation:
 1. **Time & Duration Extraction:**
    - Extract the `start_time` and `end_time` (or total duration if explicitly stated) and calculate the total duration in hours.
+   - Note: The posting text will frequently be in Japanese. Parse Japanese date/time formats and symbols accurately (e.g., "13:00〜17:00", "10時〜12時", "午前9時〜午後1時").
    
 2. **The Baseline Rule:**
    - Standard volunteer work (e.g., desk jobs, admin help, basic hosting) is calculated at **1 point per working hour**.
@@ -159,9 +160,10 @@ Your task is to analyze the text of a volunteer posting and verify if the reward
 4. **The "Passive/Storage" Exception:**
    - Some volunteer postings involve providing space rather than active labor (e.g., storing boxes in a garage, hosting equipment). In these passive, long-term cases, the total points offered must be **low (e.g., only 2 or 3 points total)**, despite a long calendar duration. High total points for passive storage must be flagged as invalid.
 
-5. **Flagging Threshold:**
+5. **Flagging Threshold & Language:**
    - Do not flag postings for minor deviations. Only set `is_valid` to false if the reward points are completely unreasonable or "far away" from the baseline rules, exceptions, or historical precedents.
    - If a post is invalid, state the required corrections in `corrections_needed`. If valid, `corrections_needed` must be an empty list.
+   - **Crucial Language Matching**: Detect the language of the volunteer posting. Generate the `reasoning` and `corrections_needed` fields in that same language (e.g., if the posting is in Japanese, output the reasoning and corrections in Japanese).
 
 ### Historical Reference Examples (Dynamic Few-Shot context):
 {formatted_examples}
