@@ -65,23 +65,23 @@ You can run the script in three different modes:
 ### 1. Dry Run Mode (No Slack Connection Required)
 Validates local mock volunteer posts to demonstrate Gemini's reasoning and Pydantic validation:
 ```bash
-python3 src/main.py --dry-run
+python3 -m src.main --dry-run
 ```
 
 ### 2. Interactive Mode
 Allows typing or pasting a volunteer post manually to run immediate validation:
 ```bash
-python3 src/main.py --interactive
+python3 -m src.main --interactive
 ```
 
 ### 3. Slack Fetcher Mode (Production Pipeline)
 Fetches recent posts from your Slack channel and validates them:
 ```bash
-python3 src/main.py
+python3 -m src.main
 ```
 *Note: If no cached token file `slack_token.json` exists, the tool will automatically launch a browser to initiate the OAuth consent flow, capture the authorization code on `http://localhost:8080/`, and exchange it for a user access token.*
 
 To force re-authentication (e.g. if the token expires or scope changes):
 ```bash
-python3 src/main.py --force-reauth
+python3 -m src.main --force-reauth
 ```
