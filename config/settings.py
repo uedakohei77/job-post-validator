@@ -3,7 +3,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
-load_dotenv()
+load_dotenv(override=True)
 
 # Project root directory
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -17,7 +17,7 @@ SLACK_TOKEN_FILE = os.getenv("SLACK_TOKEN_FILE", str(BASE_DIR / "slack_token.jso
 
 # Gemini API configuration
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "text-embedding-004")
+EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "gemini-embedding-2")
 
 # Historical examples configuration
 HISTORICAL_POSTS_PATH = os.getenv(
