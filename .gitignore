@@ -24,3 +24,6 @@ credentials.json
 .vscode/
 .idea/
 .DS_Store
+
+# Generated category index (rebuilt by `python3 -m src.categories refresh`)
+data/

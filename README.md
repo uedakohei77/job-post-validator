@@ -19,7 +19,8 @@ JobPostValidator/
 │   └── historical_posts.json # Historical posts used as few-shot reference examples
 ├── src/
 │   ├── auth.py               # Slack OAuth redirect receiver and token manager
-│   ├── slack_fetcher.py      # Slack history fetching logic
+│   ├── slack_fetcher.py      # Slack history fetching logic (incl. paginated backfill)
+│   ├── categories/           # Category suggestion, search, and CLI (parser.py, suggester.py, cli.py)
 │   ├── models.py             # Pydantic schemas (VolunteerPostValidation)
 │   ├── validator.py          # Gemini API validation orchestrator
 │   └── main.py               # CLI entrypoint
@@ -27,6 +28,31 @@ JobPostValidator/
 ├── requirements.txt          # Python dependencies
 └── README.md                 # User documentation
 ```
+
+## Category Suggestion Module (`src/categories/`)
+
+Backfills the last 365 days of postings from Slack and proposes a de-duplicated category list, so the posting form can use a dropdown instead of free text. It also lets an admin search past postings and reuse one as the starting point for a new post. It is offline and deterministic (no Gemini calls) and does not touch the validator.
+
+```bash
+python3 -m src.categories refresh                      # fetch from Slack, rebuild data/category_index.json
+python3 -m src.categories refresh --from-file msgs.json  # same, from saved Slack messages (no Slack needed)
+python3 -m src.categories list                         # categories, usage, merged spellings, possible duplicates
+python3 -m src.categories options                      # dropdown values as JSON
+python3 -m src.categories search 下校 --category 交通安全当番
+python3 -m src.categories template 教科書配布          # latest posting in a category, to copy for a new post
+python3 -m pytest tests                                # tests
+```
+
+How categories are suggested:
+- The `カテゴリ:` value is normalized (full/half-width, spaces, separators, `（…）` qualifiers) so `ランチ当番`, `ランチ 当番` and `ランチ当番（幼小部）` become one option.
+- Near-identical spellings (similarity >= 0.80, e.g. `教科書配布` / `教科書配付`) are merged. Pairs at 0.60-0.80 are listed as "possible duplicates" for an admin to decide on. The most-used spelling becomes the option name.
+- A job repeated once per date inside one message counts as one posting.
+- Jobs with no `カテゴリ` get a suggestion from their title (`SJ幼小部 ランチ当番` -> `ランチ当番`), or `未分類` if nothing matches.
+- `index.resolve(text)` maps any legacy free-text value onto a dropdown option.
+
+Note: this `category` is the posting's `カテゴリ` field, unrelated to the validator's `Standard` / `High-Effort` / `Passive Storage` classification.
+
+Settings (optional, in `.env`): `CATEGORY_INDEX_PATH` (default `data/category_index.json`), `CATEGORY_WINDOW_DAYS` (default `365`).
 
 ## Setup & Installation
 

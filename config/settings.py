@@ -19,6 +19,12 @@ SLACK_TOKEN_FILE = os.getenv("SLACK_TOKEN_FILE", str(BASE_DIR / "slack_token.jso
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "gemini-embedding-2")
 
+# Category suggestion module
+CATEGORY_INDEX_PATH = os.getenv(
+    "CATEGORY_INDEX_PATH", str(BASE_DIR / "data" / "category_index.json")
+)
+CATEGORY_WINDOW_DAYS = int(os.getenv("CATEGORY_WINDOW_DAYS", "365"))
+
 # Historical examples configuration
 HISTORICAL_POSTS_PATH = os.getenv(
     "HISTORICAL_POSTS_PATH", str(BASE_DIR / "config" / "historical_posts.json")
