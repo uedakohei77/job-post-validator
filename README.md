@@ -35,7 +35,8 @@ Backfills the last 365 days of postings from Slack and proposes a de-duplicated 
 
 ```bash
 python3 -m src.categories refresh                      # fetch from Slack, rebuild data/category_index.json
-python3 -m src.categories refresh --from-file msgs.json  # same, from saved Slack messages (no Slack needed)
+python3 -m src.categories refresh --channel C0CURRENT --channel C08JG3E4LUF   # scan several channels (e.g. this and last school year)
+python3 -m src.categories refresh --from-file a.json b.json  # same, from saved Slack messages (no Slack or API keys needed)
 python3 -m src.categories list                         # categories, usage, merged spellings, possible duplicates
 python3 -m src.categories options                      # dropdown values as JSON
 python3 -m src.categories search 下校 --category 交通安全当番
@@ -52,7 +53,7 @@ How categories are suggested:
 
 Note: this `category` is the posting's `カテゴリ` field, unrelated to the validator's `Standard` / `High-Effort` / `Passive Storage` classification.
 
-Settings (optional, in `.env`): `CATEGORY_INDEX_PATH` (default `data/category_index.json`), `CATEGORY_WINDOW_DAYS` (default `365`).
+Settings (optional, in `.env`): `CATEGORY_CHANNEL_IDS` (comma-separated channels to scan, default `SLACK_CHANNEL_ID`; the validator keeps using `SLACK_CHANNEL_ID` only), `CATEGORY_INDEX_PATH` (default `data/category_index.json`), `CATEGORY_WINDOW_DAYS` (default `365`). Because each school year may have its own channel, list every channel that overlaps the window; postings from all of them are merged into one category list. Your Slack token must belong to a member of each channel (and have `groups:history` for private ones).
 
 ## Setup & Installation
 

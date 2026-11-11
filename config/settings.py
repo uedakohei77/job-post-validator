@@ -24,6 +24,12 @@ CATEGORY_INDEX_PATH = os.getenv(
     "CATEGORY_INDEX_PATH", str(BASE_DIR / "data" / "category_index.json")
 )
 CATEGORY_WINDOW_DAYS = int(os.getenv("CATEGORY_WINDOW_DAYS", "365"))
+# Channels to scan for past postings (comma-separated), e.g. the current school
+# year's channel plus last year's. Defaults to SLACK_CHANNEL_ID. The validator
+# keeps using SLACK_CHANNEL_ID only.
+CATEGORY_CHANNEL_IDS = [
+    c.strip() for c in os.getenv("CATEGORY_CHANNEL_IDS", "").split(",") if c.strip()
+] or ([SLACK_CHANNEL_ID] if SLACK_CHANNEL_ID else [])
 
 # Historical examples configuration
 HISTORICAL_POSTS_PATH = os.getenv(

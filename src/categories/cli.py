@@ -3,7 +3,8 @@
 CLI for the category module.
 
   python3 -m src.categories refresh            # fetch last 365 days from Slack, rebuild index
-  python3 -m src.categories refresh --from-file messages.json   # offline, Slack export / saved messages
+  python3 -m src.categories refresh --channel C0CURRENT --channel C08JG3E4LUF   # several channels
+  python3 -m src.categories refresh --from-file a.json b.json   # offline, saved messages
   python3 -m src.categories list               # dropdown options with usage + variants
   python3 -m src.categories options            # dropdown options as JSON (for the posting form)
   python3 -m src.categories search 交通 --category 交通安全当番
@@ -27,29 +28,52 @@ def _load_index(path):
     return CategoryIndex.load(path)
 
 
-def cmd_refresh(args):
+def resolve_channels(args):
+    """--channel flags win; otherwise CATEGORY_CHANNEL_IDS, then SLACK_CHANNEL_ID."""
+    return args.channel or settings.CATEGORY_CHANNEL_IDS
+
+
+def _collect_entries(args):
+    """Returns (entries, total_messages) from saved files or from every configured channel."""
+    entries, total = [], 0
     if args.from_file:
-        with open(args.from_file, "r", encoding="utf-8") as f:
-            messages = json.load(f)
-        print(f"Loaded {len(messages)} messages from {args.from_file}")
-    else:
-        # Imported lazily so offline use doesn't require Slack configuration.
-        from src.auth import get_slack_token
-        from src.slack_fetcher import fetch_slack_history_since
+        for path in args.from_file:
+            with open(path, "r", encoding="utf-8") as f:
+                messages = json.load(f)
+            label = os.path.splitext(os.path.basename(path))[0]
+            print(f"Loaded {len(messages)} messages from {path}")
+            entries.extend(parse_messages(messages, channel=label))
+            total += len(messages)
+        return entries, total
 
-        if not settings.SLACK_CHANNEL_ID:
-            print("[!] SLACK_CHANNEL_ID is missing in your .env file.")
-            sys.exit(1)
-        token = get_slack_token(force_reauth=args.force_reauth)
-        oldest = time.time() - args.days * 86400
-        print(f"Fetching the last {args.days} days from channel {settings.SLACK_CHANNEL_ID}...")
-        messages = fetch_slack_history_since(settings.SLACK_CHANNEL_ID, token, oldest)
-        print(f"Fetched {len(messages)} messages.")
+    # Imported lazily so offline use doesn't require Slack configuration.
+    from src.auth import get_slack_token
+    from src.slack_fetcher import fetch_slack_history_since
+
+    channels = resolve_channels(args)
+    if not channels:
+        print("[!] No channel configured. Set CATEGORY_CHANNEL_IDS (or SLACK_CHANNEL_ID) in .env, "
+              "or pass --channel C0123456789.")
+        sys.exit(1)
+    token = get_slack_token(force_reauth=args.force_reauth)
+    oldest = time.time() - args.days * 86400
+    for channel in channels:
+        print(f"Fetching the last {args.days} days from channel {channel}...")
+        messages = fetch_slack_history_since(channel, token, oldest)
+        print(f"  {len(messages)} messages")
         if not messages:
-            print("Nothing fetched; leaving the existing index untouched.")
-            sys.exit(1)
+            print(f"  [!] Nothing from {channel}: check the ID, that you are a member, "
+                  "and that your token has the right history scope.")
+        entries.extend(parse_messages(messages, channel=channel))
+        total += len(messages)
+    return entries, total
 
-    entries = parse_messages(messages)
+
+def cmd_refresh(args):
+    entries, total = _collect_entries(args)
+    if not total:
+        print("Nothing fetched; leaving the existing index untouched.")
+        sys.exit(1)
     index = build_index(entries, window_days=args.days)
     os.makedirs(os.path.dirname(args.index) or ".", exist_ok=True)
     index.save(args.index)
@@ -124,7 +148,10 @@ def main():
 
     p = sub.add_parser("refresh", help="Fetch postings and rebuild the category index.")
     p.add_argument("--days", type=int, default=settings.CATEGORY_WINDOW_DAYS)
-    p.add_argument("--from-file", help="Read Slack messages from a JSON file instead of calling Slack.")
+    p.add_argument("--channel", action="append",
+                   help="Slack channel ID to scan; repeat for several. Overrides CATEGORY_CHANNEL_IDS.")
+    p.add_argument("--from-file", nargs="+",
+                   help="Read Slack messages from one or more JSON files instead of calling Slack.")
     p.add_argument("--force-reauth", action="store_true")
     p.set_defaults(func=cmd_refresh)
 

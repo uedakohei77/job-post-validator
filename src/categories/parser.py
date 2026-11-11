@@ -41,6 +41,7 @@ class JobEntry:
     headcount: str           # 募集人数 (raw text)
     audience: str            # 対象 (raw text)
     body: str                # the full job block, reusable as a template
+    channel: str = ""        # Slack channel the message came from
 
     def to_dict(self):
         return asdict(self)
@@ -75,7 +76,7 @@ def ts_to_iso(ts):
     return datetime.fromtimestamp(float(ts), tz=timezone.utc).isoformat()
 
 
-def parse_message(message):
+def parse_message(message, channel=""):
     """
     Parses one Slack message dict ({"ts":..., "text":...}) into JobEntry list.
     Returns [] when the message is not a volunteer posting.
@@ -83,7 +84,7 @@ def parse_message(message):
     text = (message.get("text") or "").strip()
     ts = str(message.get("ts", ""))
     if "業務名称" not in text:
-        return _parse_unlabelled(text, ts)
+        return _parse_unlabelled(text, ts, channel)
 
     entries = []
     for block in _JOB_SPLIT.split(text):
@@ -106,6 +107,7 @@ def parse_message(message):
             headcount=_field(block, "募集人数"),
             audience=_field(block, "対象"),
             body=block,
+            channel=channel,
         ))
     return entries
 
@@ -114,7 +116,7 @@ _LOOKS_LIKE_POST = re.compile(r"貢献点|募集人数")
 _DECOR = re.compile(r"@(?:channel|here)|:[a-z0-9_+\-]+:|[━─―=＿_\-]{3,}|ー{3,}")
 
 
-def _parse_unlabelled(text, ts):
+def _parse_unlabelled(text, ts, channel=""):
     """
     Older / ad-hoc postings have no 業務名称 label, only a heading and fields such
     as 募集人数 / 貢献点. Treat the whole message as one job, titled by its heading.
@@ -139,6 +141,7 @@ def _parse_unlabelled(text, ts):
         headcount=_field(text, "募集人数"),
         audience=_field(text, "対象"),
         body=text,
+        channel=channel,
     )]
 
 
@@ -148,11 +151,11 @@ _IGNORED_SUBTYPES = {
 }
 
 
-def parse_messages(messages):
-    """Parses many messages, skipping Slack system messages."""
+def parse_messages(messages, channel=""):
+    """Parses many messages from one channel, skipping Slack system messages."""
     entries = []
     for msg in messages:
         if msg.get("subtype") in _IGNORED_SUBTYPES:
             continue
-        entries.extend(parse_message(msg))
+        entries.extend(parse_message(msg, channel))
     return entries

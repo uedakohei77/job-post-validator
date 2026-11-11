@@ -114,12 +114,13 @@ class CategoryIndex:
 
 def _dedupe_postings(entries):
     """
-    One "posting" = one (message, job title). A job repeated once per date inside
-    one message must not inflate the counts.
+    One "posting" = one (channel, message, job title). A job repeated once per date
+    inside one message must not inflate the counts; a Slack ts is only unique
+    within its channel, so the channel is part of the key.
     """
     seen, unique = set(), []
     for e in entries:
-        k = (e["message_ts"], normalize(e["title"]), normalize(e["category_raw"]))
+        k = (e.get("channel", ""), e["message_ts"], normalize(e["title"]), normalize(e["category_raw"]))
         if k not in seen:
             seen.add(k)
             unique.append(e)

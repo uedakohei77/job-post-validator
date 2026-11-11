@@ -209,3 +209,62 @@ def test_tag_only_heading_is_skipped_for_unlabelled_posts():
     m = msg(21, "━━━━━━━━━━\n 【再告知】 \n 保護者会ボランティア募集！\n━━━━━━━━━━\n募集人数：12名\n貢献点：2点")
     (e,) = parse_message(m)
     assert e.title == "保護者会ボランティア募集！"
+
+
+# ------------------------------------------------------------------ multiple channels
+
+import argparse
+import json
+
+from src.categories import cli
+
+
+def _args(**kw):
+    base = dict(channel=None, from_file=None, days=365, force_reauth=False, index=None)
+    base.update(kw)
+    return argparse.Namespace(**base)
+
+
+def test_same_ts_in_two_channels_are_two_postings():
+    m = msg(1, HEADER + job("SJ幼小部 ランチ当番", "ランチ当番") + FOOTER)   # identical ts + text
+    entries = parse_messages([m], channel="C_NEW") + parse_messages([m], channel="C_OLD")
+    assert {e.channel for e in entries} == {"C_NEW", "C_OLD"}
+    idx = build_index(entries)
+    assert idx.categories[0].posting_count == 2
+
+
+def test_resolve_channels_prefers_flags_then_settings(monkeypatch):
+    monkeypatch.setattr(cli.settings, "CATEGORY_CHANNEL_IDS", ["C_ENV1", "C_ENV2"])
+    assert cli.resolve_channels(_args()) == ["C_ENV1", "C_ENV2"]
+    assert cli.resolve_channels(_args(channel=["C_FLAG"])) == ["C_FLAG"]
+
+
+def test_refresh_merges_spellings_across_files(tmp_path, capsys):
+    new = [msg(1, HEADER + job("SJ幼小部 ランチ当番", "ランチ当番") + FOOTER)]
+    old = [msg(1, HEADER + job("SJ幼小部 ランチ当番", "ランチ 当番") + FOOTER),
+           msg(2, HEADER + job("SJ幼小部 教科書配布", "教科書配布") + FOOTER)]
+    (tmp_path / "school2026.json").write_text(json.dumps(new), encoding="utf-8")
+    (tmp_path / "school2025.json").write_text(json.dumps(old), encoding="utf-8")
+    out = tmp_path / "idx.json"
+    cli.cmd_refresh(_args(from_file=[str(tmp_path / "school2026.json"), str(tmp_path / "school2025.json")],
+                          index=str(out)))
+    idx = CategoryIndex.load(out)
+    lunch = next(c for c in idx.categories if c.name == "ランチ当番")
+    assert lunch.posting_count == 2 and set(lunch.variants) == {"ランチ当番", "ランチ 当番"}
+    assert {p["channel"] for p in idx.postings} == {"school2026", "school2025"}
+
+
+def test_live_refresh_scans_every_channel_and_survives_one_failing(tmp_path):
+    calls = []
+
+    def fake_fetch(channel, token, oldest):
+        calls.append(channel)
+        return [] if channel == "C_BAD" else [msg(1, HEADER + job("SJ幼小部 ランチ当番", "ランチ当番") + FOOTER)]
+
+    out = tmp_path / "idx.json"
+    with mock.patch("src.auth.get_slack_token", return_value="xoxp-t"), \
+            mock.patch("src.slack_fetcher.fetch_slack_history_since", side_effect=fake_fetch):
+        cli.cmd_refresh(_args(channel=["C_OK", "C_BAD", "C_OLD"], index=str(out)))
+    assert calls == ["C_OK", "C_BAD", "C_OLD"]
+    idx = CategoryIndex.load(out)
+    assert idx.categories[0].posting_count == 2          # C_OK + C_OLD; C_BAD contributed nothing
