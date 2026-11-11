@@ -60,7 +60,7 @@ def fetch_slack_history_since(channel_id, auth_token, oldest_ts, page_size=200, 
     cursor pagination and honoring HTTP 429 rate limits.
 
     Unlike fetch_slack_history (a single page of `limit` messages), this is meant
-    for backfills such as "the last 365 days of postings".
+    for backfills such as "every posting since January 2025".
 
     Args:
         channel_id (str): The Slack channel ID.

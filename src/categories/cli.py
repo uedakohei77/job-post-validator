@@ -2,7 +2,8 @@
 """
 CLI for the category module.
 
-  python3 -m src.categories refresh            # fetch last 365 days from Slack, rebuild index
+  python3 -m src.categories refresh            # fetch everything since 2025-01-01 from Slack, rebuild index
+  python3 -m src.categories refresh --since 2025-04-01   # or --days 365 for a rolling window
   python3 -m src.categories refresh --channel C0CURRENT --channel C08JG3E4LUF   # several channels
   python3 -m src.categories refresh --from-file a.json b.json   # offline, saved messages
   python3 -m src.categories list               # dropdown options with usage + variants
@@ -14,7 +15,7 @@ import argparse
 import json
 import os
 import sys
-import time
+from datetime import datetime, timedelta, timezone
 
 from config import settings
 from src.categories.parser import parse_messages
@@ -26,6 +27,22 @@ def _load_index(path):
         print(f"No index at {path}. Run: python3 -m src.categories refresh")
         sys.exit(1)
     return CategoryIndex.load(path)
+
+
+def resolve_window(args):
+    """
+    Returns (oldest_unix_ts, since_date_str). `--days N` (rolling window) wins if
+    given; otherwise the fixed start date, from --since or CATEGORY_START_DATE.
+    """
+    if args.days:
+        start = datetime.now(timezone.utc) - timedelta(days=args.days)
+    else:
+        try:
+            start = datetime.strptime(args.since, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+        except (TypeError, ValueError):
+            print(f"[!] Invalid start date {args.since!r}; expected YYYY-MM-DD, e.g. 2025-01-01.")
+            sys.exit(1)
+    return start.timestamp(), start.date().isoformat()
 
 
 def resolve_channels(args):
@@ -55,10 +72,10 @@ def _collect_entries(args):
         print("[!] No channel configured. Set CATEGORY_CHANNEL_IDS (or SLACK_CHANNEL_ID) in .env, "
               "or pass --channel C0123456789.")
         sys.exit(1)
+    oldest, since = resolve_window(args)
     token = get_slack_token(force_reauth=args.force_reauth)
-    oldest = time.time() - args.days * 86400
     for channel in channels:
-        print(f"Fetching the last {args.days} days from channel {channel}...")
+        print(f"Fetching postings since {since} from channel {channel}...")
         messages = fetch_slack_history_since(channel, token, oldest)
         print(f"  {len(messages)} messages")
         if not messages:
@@ -74,7 +91,8 @@ def cmd_refresh(args):
     if not total:
         print("Nothing fetched; leaving the existing index untouched.")
         sys.exit(1)
-    index = build_index(entries, window_days=args.days)
+    since = "" if args.from_file else resolve_window(args)[1]
+    index = build_index(entries, since=since)
     os.makedirs(os.path.dirname(args.index) or ".", exist_ok=True)
     index.save(args.index)
 
@@ -106,7 +124,8 @@ def _print_categories(index):
 
 def cmd_list(args):
     index = _load_index(args.index)
-    print(f"Index generated {index.generated_at[:19]} (last {index.window_days} days)\n")
+    since = f", postings since {index.since}" if index.since else ""
+    print(f"Index generated {index.generated_at[:19]}{since}\n")
     _print_categories(index)
 
 
@@ -147,7 +166,9 @@ def main():
     sub = parser.add_subparsers(dest="command", required=True)
 
     p = sub.add_parser("refresh", help="Fetch postings and rebuild the category index.")
-    p.add_argument("--days", type=int, default=settings.CATEGORY_WINDOW_DAYS)
+    p.add_argument("--since", default=settings.CATEGORY_START_DATE,
+                   help="Fetch postings from this date (YYYY-MM-DD) to now. Default: CATEGORY_START_DATE.")
+    p.add_argument("--days", type=int, help="Rolling window of the last N days instead of --since.")
     p.add_argument("--channel", action="append",
                    help="Slack channel ID to scan; repeat for several. Overrides CATEGORY_CHANNEL_IDS.")
     p.add_argument("--from-file", nargs="+",

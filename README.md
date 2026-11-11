@@ -31,10 +31,11 @@ JobPostValidator/
 
 ## Category Suggestion Module (`src/categories/`)
 
-Backfills the last 365 days of postings from Slack and proposes a de-duplicated category list, so the posting form can use a dropdown instead of free text. It also lets an admin search past postings and reuse one as the starting point for a new post. It is offline and deterministic (no Gemini calls) and does not touch the validator.
+Backfills every posting from a start date (default 2025-01-01) up to now from Slack and proposes a de-duplicated category list, so the posting form can use a dropdown instead of free text. It also lets an admin search past postings and reuse one as the starting point for a new post. It is offline and deterministic (no Gemini calls) and does not touch the validator.
 
 ```bash
-python3 -m src.categories refresh                      # fetch from Slack, rebuild data/category_index.json
+python3 -m src.categories refresh                      # fetch everything since 2025-01-01 from Slack, rebuild data/category_index.json
+python3 -m src.categories refresh --since 2025-04-01   # different start date (or --days 365 for a rolling window)
 python3 -m src.categories refresh --channel C0CURRENT --channel C08JG3E4LUF   # scan several channels (e.g. this and last school year)
 python3 -m src.categories refresh --from-file a.json b.json  # same, from saved Slack messages (no Slack or API keys needed)
 python3 -m src.categories list                         # categories, usage, merged spellings, possible duplicates
@@ -53,7 +54,7 @@ How categories are suggested:
 
 Note: this `category` is the posting's `カテゴリ` field, unrelated to the validator's `Standard` / `High-Effort` / `Passive Storage` classification.
 
-Settings (optional, in `.env`): `CATEGORY_CHANNEL_IDS` (comma-separated channels to scan, default `SLACK_CHANNEL_ID`; the validator keeps using `SLACK_CHANNEL_ID` only), `CATEGORY_INDEX_PATH` (default `data/category_index.json`), `CATEGORY_WINDOW_DAYS` (default `365`). Because each school year may have its own channel, list every channel that overlaps the window; postings from all of them are merged into one category list. Your Slack token must belong to a member of each channel (and have `groups:history` for private ones).
+Settings (optional, in `.env`): `CATEGORY_CHANNEL_IDS` (comma-separated channels to scan, default `SLACK_CHANNEL_ID`; the validator keeps using `SLACK_CHANNEL_ID` only), `CATEGORY_INDEX_PATH` (default `data/category_index.json`), `CATEGORY_START_DATE` (default `2025-01-01`, UTC). Because each school year may have its own channel, list every channel that overlaps the period; postings from all of them are merged into one category list. Your Slack token must belong to a member of each channel (and have `groups:history` for private ones).
 
 ## Setup & Installation
 

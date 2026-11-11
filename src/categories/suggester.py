@@ -60,8 +60,8 @@ class Category:
 @dataclass
 class CategoryIndex:
     generated_at: str
-    window_days: int
-    categories: list            # list[Category] (dropdown order: most used first)
+    since: str                  # earliest posting date included (YYYY-MM-DD)
+    categories: list           # list[Category] (dropdown order: most used first)
     review_pairs: list          # [{a, b, similarity}] borderline duplicates
     postings: list              # every job entry + resolved category info
 
@@ -79,7 +79,7 @@ class CategoryIndex:
     def from_dict(cls, d):
         return cls(
             generated_at=d["generated_at"],
-            window_days=d["window_days"],
+            since=d.get("since", ""),
             categories=[Category(**c) for c in d["categories"]],
             review_pairs=d.get("review_pairs", []),
             postings=d["postings"],
@@ -127,7 +127,7 @@ def _dedupe_postings(entries):
     return unique
 
 
-def build_index(entries, window_days=365, now=None):
+def build_index(entries, since="", now=None):
     """
     Builds the CategoryIndex from parsed JobEntry objects (or their dicts).
     """
@@ -190,7 +190,7 @@ def build_index(entries, window_days=365, now=None):
     # 4. Resolve each posting's category; suggest one where it was left blank.
     index = CategoryIndex(
         generated_at=now.isoformat(),
-        window_days=window_days,
+        since=since,
         categories=categories,
         review_pairs=review_pairs,
         postings=[],

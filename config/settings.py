@@ -23,7 +23,9 @@ EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "gemini-embedding-2")
 CATEGORY_INDEX_PATH = os.getenv(
     "CATEGORY_INDEX_PATH", str(BASE_DIR / "data" / "category_index.json")
 )
-CATEGORY_WINDOW_DAYS = int(os.getenv("CATEGORY_WINDOW_DAYS", "365"))
+# Postings are fetched from this date (YYYY-MM-DD, UTC) up to the time of the run.
+# Kept as a string and validated by the CLI, so a typo can never break the validator.
+CATEGORY_START_DATE = os.getenv("CATEGORY_START_DATE", "2025-01-01")
 # Channels to scan for past postings (comma-separated), e.g. the current school
 # year's channel plus last year's. Defaults to SLACK_CHANNEL_ID. The validator
 # keeps using SLACK_CHANNEL_ID only.

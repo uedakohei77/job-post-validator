@@ -42,7 +42,7 @@ MESSAGES = [
 
 
 def build():
-    return build_index(parse_messages(MESSAGES), window_days=365)
+    return build_index(parse_messages(MESSAGES), since="2025-01-01")
 
 
 # ------------------------------------------------------------------ parsing
@@ -220,7 +220,7 @@ from src.categories import cli
 
 
 def _args(**kw):
-    base = dict(channel=None, from_file=None, days=365, force_reauth=False, index=None)
+    base = dict(channel=None, from_file=None, since="2025-01-01", days=None, force_reauth=False, index=None)
     base.update(kw)
     return argparse.Namespace(**base)
 
@@ -268,3 +268,37 @@ def test_live_refresh_scans_every_channel_and_survives_one_failing(tmp_path):
     assert calls == ["C_OK", "C_BAD", "C_OLD"]
     idx = CategoryIndex.load(out)
     assert idx.categories[0].posting_count == 2          # C_OK + C_OLD; C_BAD contributed nothing
+
+
+# ------------------------------------------------------------------ fetch window
+
+def test_window_defaults_to_fixed_start_date():
+    oldest, since = cli.resolve_window(_args())
+    assert since == "2025-01-01" and oldest == 1735689600.0     # 2025-01-01T00:00:00Z
+
+
+def test_days_flag_overrides_start_date():
+    oldest, since = cli.resolve_window(_args(days=30))
+    assert abs(oldest - (__import__("time").time() - 30 * 86400)) < 5
+
+
+def test_invalid_start_date_exits_cleanly(capsys):
+    import pytest
+    with pytest.raises(SystemExit):
+        cli.resolve_window(_args(since="2025/01/01"))
+    assert "YYYY-MM-DD" in capsys.readouterr().out
+
+
+def test_live_refresh_passes_start_date_to_slack_and_records_it(tmp_path):
+    seen = []
+
+    def fake_fetch(channel, token, oldest):
+        seen.append(oldest)
+        return [msg(1, HEADER + job("SJ幼小部 ランチ当番", "ランチ当番") + FOOTER)]
+
+    out = tmp_path / "idx.json"
+    with mock.patch("src.auth.get_slack_token", return_value="xoxp-t"), \
+            mock.patch("src.slack_fetcher.fetch_slack_history_since", side_effect=fake_fetch):
+        cli.cmd_refresh(_args(channel=["C_A"], index=str(out)))
+    assert seen == [1735689600.0]
+    assert CategoryIndex.load(out).since == "2025-01-01"
