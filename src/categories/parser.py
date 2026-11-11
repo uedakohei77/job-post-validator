@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 LABELS = [
     "業務名称", "カテゴリ", "対象学校・学年", "業務開始日時", "業務終了日時",
     "申込開始日時", "申込終了日時", "対象", "募集人数", "貢献点",
-    "選出方法", "業務詳細", "集合場所",
+    "選出方法", "業務詳細", "業務の詳細", "業務内容", "集合場所", "場所",
 ]
 _LABEL_ALT = "|".join(sorted((re.escape(l) for l in LABELS), key=len, reverse=True))
 _SEP = r"\s*[:：]\s*"
@@ -63,13 +63,46 @@ def _field(block, label):
     return m.group(1).split("\n", 1)[0].strip()
 
 
+_UNKNOWN_LABEL = re.compile(r"\s\S{1,12}?[:：]")
+
+
 def _valid_category(value):
-    """A "category" that runs on is a parsing miss (label with no clear end)."""
+    """
+    Normalizes a raw カテゴリ value. It is a short label, so it also stops at any
+    other "label:" on the same line (e.g. "スポーツ大会 場所: 中高SJ" -> "スポーツ大会").
+    A value that still runs on is a parsing miss, not a real category.
+    """
+    value = _UNKNOWN_LABEL.split(" " + value, 1)[0].strip().strip("*_~ 　")
     return value if len(value) <= MAX_CATEGORY_LEN else ""
 
 
 def _clean_title(title):
-    return _TITLE_DATE_TAIL.sub("", title).strip()
+    title = _TITLE_DATE_TAIL.sub("", title.replace("*", " "))
+    return re.sub(r"[ \t　]+", " ", title).strip()
+
+
+_SLACK_LINK = re.compile(r"<(https?://[^|>\s]+)(?:\|([^>]*))?>")
+_SLACK_SPECIAL = re.compile(r"<!(channel|here|everyone)(?:\|[^>]*)?>")
+_SLACK_SUBTEAM = re.compile(r"<!subteam\^[A-Z0-9]+(?:\|(@[^>]*))?>")
+_SLACK_USER = re.compile(r"<@[A-Z0-9]+(?:\|[^>]*)?>")
+_SLACK_CHANNEL_REF = re.compile(r"<#[A-Z0-9]+(?:\|([^>]*))?>")
+
+
+def clean_slack_text(text):
+    """
+    Undoes Slack's message encoding so fields can be parsed and the body reused as
+    a template: <!channel> -> @channel, links -> "label (url)", and the three
+    HTML entities Slack escapes (&amp; &lt; &gt;). Bold/italic markers are kept.
+    """
+    text = _SLACK_SPECIAL.sub(lambda m: "@" + m.group(1), text)
+    text = _SLACK_SUBTEAM.sub(lambda m: m.group(1) or "@group", text)
+    text = _SLACK_USER.sub("@user", text)
+    text = _SLACK_CHANNEL_REF.sub(lambda m: "#" + (m.group(1) or "channel"), text)
+    text = _SLACK_LINK.sub(
+        lambda m: m.group(1) if not m.group(2) or m.group(2) == m.group(1) else f"{m.group(2)} ({m.group(1)})",
+        text,
+    )
+    return text.replace("&lt;", "<").replace("&gt;", ">").replace("&amp;", "&")
 
 
 def ts_to_iso(ts):
@@ -81,7 +114,7 @@ def parse_message(message, channel=""):
     Parses one Slack message dict ({"ts":..., "text":...}) into JobEntry list.
     Returns [] when the message is not a volunteer posting.
     """
-    text = (message.get("text") or "").strip()
+    text = clean_slack_text((message.get("text") or "")).strip()
     ts = str(message.get("ts", ""))
     if "業務名称" not in text:
         return _parse_unlabelled(text, ts, channel)
@@ -116,6 +149,40 @@ _LOOKS_LIKE_POST = re.compile(r"貢献点|募集人数")
 _DECOR = re.compile(r"@(?:channel|here)|:[a-z0-9_+\-]+:|[━─―=＿_\-]{3,}|ー{3,}")
 
 
+_BOLD = re.compile(r"\*([^*\n]+?)\*")
+_TITLE_MAX = 60
+
+
+def _is_tag(segment):
+    """Short bracketed tags such as 【再告知】 (re-announcement) are not titles."""
+    m = re.fullmatch(r"【([^】]*)】", segment)
+    return bool(m) and len(m.group(1).strip()) <= 5
+
+
+def _shorten(heading):
+    """Cut at the first sentence end (if past 8 chars) and cap the length."""
+    m = re.search(r"[。！!？?]", heading[8:])
+    if m:
+        heading = heading[: 8 + m.start() + 1]
+    return heading[:_TITLE_MAX].strip()
+
+
+def _heading(preamble):
+    """
+    Title for a post with no 業務名称. Slack posts usually bold the title, so the
+    first bold segment that is not just a tag wins; otherwise the first line that
+    is not a tag/decoration.
+    """
+    plain = _DECOR.sub(" ", preamble)
+    for seg in (s.strip() for s in _BOLD.findall(plain)):
+        if seg and not _is_tag(seg):
+            seg = re.sub(r"^【(.*)】$", r"\1", seg).strip()   # 【タイトル】 -> タイトル
+            return _shorten(re.sub(r"\s+", " ", seg))
+    lines = [re.sub(r"\s+", " ", ln.replace("*", " ")).strip() for ln in plain.splitlines()]
+    heading = next((ln for ln in lines if ln and not _is_tag(ln)), "")
+    return _shorten(heading)
+
+
 def _parse_unlabelled(text, ts, channel=""):
     """
     Older / ad-hoc postings have no 業務名称 label, only a heading and fields such
@@ -124,13 +191,7 @@ def _parse_unlabelled(text, ts, channel=""):
     if not _LOOKS_LIKE_POST.search(text):
         return []
     first_label = re.search(_LABEL_ALT + _SEP, text)
-    preamble = text[: first_label.start()] if first_label else text
-    lines = [re.sub(r"\s+", " ", _DECOR.sub(" ", ln)).strip() for ln in preamble.splitlines()]
-    # Skip empty lines and tag-only lines such as 【再告知】 (re-announcement).
-    heading = next((ln for ln in lines if ln and not re.fullmatch(r"【[^】]*】", ln)), "")
-    if not heading:  # single flattened line
-        heading = re.sub(r"\s+", " ", _DECOR.sub(" ", preamble)).strip()
-    heading = heading[:80]
+    heading = _heading(text[: first_label.start()] if first_label else text)
     return [JobEntry(
         message_ts=ts,
         posted_at=ts_to_iso(ts) if ts else "",

@@ -302,3 +302,67 @@ def test_live_refresh_passes_start_date_to_slack_and_records_it(tmp_path):
         cli.cmd_refresh(_args(channel=["C_A"], index=str(out)))
     assert seen == [1735689600.0]
     assert CategoryIndex.load(out).since == "2025-01-01"
+
+
+# ------------------------------------------------------------------ regressions from the real channel
+
+from src.categories.parser import clean_slack_text
+
+
+def _one(text):
+    (e,) = parse_message(msg(50, text))
+    return e
+
+
+def test_category_stops_before_trailing_place_label():
+    # seen in production: "スポーツ大会 場所:    中高SJ" became a separate category
+    flat = job("SJ中高部 スポーツ大会 主審", "スポーツ大会 場所:    中高SJ")
+    assert _one(flat).category_raw == "スポーツ大会"
+    # an unlisted label on the same line must also end the category
+    assert _one(job("SJ中高部 受付", "受付 備考: 要連絡")).category_raw == "受付"
+
+
+def test_place_suffix_no_longer_creates_duplicate_categories():
+    msgs = [
+        msg(1, job("SJ中高部 スポーツ大会", "スポーツ大会 場所: 中高SJ")),
+        msg(2, job("SJ中高部 スポーツ大会", "スポーツ大会 場所:      中高SJ")),
+        msg(3, job("SJ中高部 交通安全当番", "交通安全当番 場所:      中高SJ")),
+        msg(4, job("SJ中高部 交通安全当番", "交通安全当番")),
+    ]
+    idx = build_index(parse_messages(msgs))
+    assert sorted(idx.options) == ["スポーツ大会", "交通安全当番"]
+    assert [c.posting_count for c in idx.categories] == [2, 2]
+    assert idx.review_pairs == []
+
+
+def test_slack_markup_is_decoded():
+    t = clean_slack_text("<!channel> A&amp;B &lt;ok&gt; <https://app.sfjs.org/|ポータル> <https://x.example> <@U123ABC> <!here>")
+    assert t == "@channel A&B <ok> ポータル (https://app.sfjs.org/) https://x.example @user @here"
+
+
+def test_body_keeps_readable_mentions_for_templates():
+    e = _one("<!channel> *在宅ボランティア募集！* 募集人数：1人 貢献点：1点 <https://app.sfjs.org/|応募>")
+    assert "<!channel>" not in e.body and "@channel" in e.body
+    assert "応募 (https://app.sfjs.org/)" in e.body
+
+
+def test_headings_from_real_unlabelled_posts():
+    tail = " 募集人数：2名 貢献点：2点"
+    cases = {
+        "<!channel> 理事会 サポーター募集 *【スタジオかけはし カメラマン募集 】* 補習校でイヤーブック作成のために" + tail:
+            "スタジオかけはし カメラマン募集",
+        "<!channel> *【再告知】* * 保護者会ボランティア募集！* *【 中高部駄菓子フェス当日ボランティア募集】* 11月7日(土)" + tail:
+            "保護者会ボランティア募集！",
+        "*秋まつり はっぴ洗濯 在宅ボランティア募集！* 10月10日（土）にSJ幼小部で実施される「秋まつり」" + tail:
+            "秋まつり はっぴ洗濯 在宅ボランティア募集！",
+        "<!channel> 新年お楽しみ会在宅ボランティア募集! 小さいお子様のいるご家庭向け!在宅ボランティア募集!" + tail:
+            "新年お楽しみ会在宅ボランティア募集!",
+        "26年度後期：ITアドミン&amp;サポートデスク募集（SF/SJ: ITサポーター）" + tail:
+            "26年度後期：ITアドミン&サポートデスク募集（SF/SJ: ITサポーター）",
+    }
+    for text, title in cases.items():
+        assert _one(text).title == title
+
+
+def test_title_whitespace_and_bold_markers_collapsed():
+    assert _one(job("SJ幼小部  ランチ当番 26年04月04日", "ランチ当番")).title == "SJ幼小部 ランチ当番"
